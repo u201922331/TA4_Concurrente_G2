@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/rand"
 	"net"
 	"os"
@@ -12,133 +11,68 @@ import (
 )
 
 const (
-	Nro_casillas      = 21
-	nFichasPorJugador = 1
+	Nro_casillas = 21
 )
 
 type Jugador struct {
 	Posicion       int
 	Fichas_metidas int
 }
-
 type Tablero struct {
 	Jugadores []Jugador
 	Tablero   []rune
 	C_j       int
 }
 
-var direccionRemota string
-var Tb = Tablero{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, make([]rune, Nro_casillas), 1}
-var cantidad_de_jugadores = 2
+func GenTablero(casillas int) []rune {
+	tablero := make([]rune, casillas)
+	for i := range tablero {
+		tablero[i] = '_' // . -> Casillas en blanco
+	}
+	tablero[0] = '#'              // # -> Inicio
+	tablero[len(tablero)-1] = '#' // $ -> Fin
 
-func Dado() int {
-	d1 := rand.Intn(6) + 1                        // Dado 1
-	d2 := rand.Intn(6) + 1                        // Dado 2
-	s := int(math.Pow(-1, float64(rand.Intn(2)))) // Dado Signo
-	/*
-		fmt.Printf("DADOS: (%d) ", d1)
-		if s > 0 {
-			fmt.Printf("(+)")
-		} else {
-			fmt.Printf("(-)")
+	umbral := int(float64(casillas) * 0.5) // Solo se llenará el 30% de las casillas en blanco con casillas especiales
+
+	for i := 0; i < umbral; i++ {
+		idx := rand.Intn(int(casillas))
+		// No afectar las casillas inicial y final
+		if idx == 0 || idx == len(tablero)-1 {
+			continue
 		}
-		fmt.Printf(" (%d)", d2)
-	*/
-	r := d1 + s*d2
-	return r
+
+		switch rand.Intn(3) + 1 {
+		case 1:
+			tablero[idx] = '1' // +3 espacios
+		case 2:
+			tablero[idx] = '2' // -3 espacios
+		case 3:
+			tablero[idx] = '3' // regresa al principio
+		}
+	}
+	return tablero
 }
 
-func Enviar(x int) {
+var Tb = Tablero{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, GenTablero(Nro_casillas), 1}
+
+func enviar_i(direccionRemota string, x int) {
 	con, _ := net.Dial("tcp", direccionRemota)
 	defer con.Close()
 	Tb.C_j = x
 
 	arrBytesJson, _ := json.Marshal(Tb)
 	strMsgJson := string(arrBytesJson)
-
+	//fmt.Println("Mensaje enviado: ")
+	fmt.Println(strMsgJson)
 	fmt.Fprintln(con, strMsgJson)
-
-	/*fmt.Println("Mensaje enviado: ")
-	fmt.Println(strMsgJson)*/
-}
-
-func Manejador(con net.Conn) {
-	var num int
-	defer con.Close()
-
-	br := bufio.NewReader(con)
-	msgJson, _ := br.ReadString('\n')
-
-	json.Unmarshal([]byte(msgJson), &Tb)
-
-	/*fmt.Println("Mensaje recibido: ")
-	fmt.Println(Tb)*/
-
-	num = Tb.C_j
-
-	//lógica del juego
-	if false {
-		fmt.Println("xd")
-	} else {
-		a := Dado()
-		Tb.Jugadores[num].Posicion = Tb.Jugadores[num].Posicion + a
-
-		if Tb.Jugadores[num].Posicion <= 0 {
-			Tb.Jugadores[num].Posicion = 0
-		}
-		if Tb.Jugadores[num].Posicion >= Nro_casillas-1 {
-			Tb.Jugadores[num].Posicion = Nro_casillas - 1
-		}
-
-		fmt.Printf("dado: %d \tA: %d \tFM: %d\tT: %d\n", a, Tb.Jugadores[num].Posicion, Tb.Jugadores[num].Fichas_metidas, num)
-		if Tb.Jugadores[num].Posicion >= Nro_casillas-1 {
-			Tb.Jugadores[num].Fichas_metidas++
-			fmt.Println("Metio una ficha")
-
-			Tb.Tablero[Tb.Jugadores[0].Posicion] = 'a'
-			Tb.Tablero[Tb.Jugadores[1].Posicion] = 'b'
-			Tb.Tablero[Tb.Jugadores[2].Posicion] = 'c'
-			Tb.Tablero[Tb.Jugadores[3].Posicion] = 'd'
-			fmt.Printf("%c\n", Tb.Tablero)
-
-			Tb.Jugadores[num].Posicion = 0
-
-			if Tb.Jugadores[num].Fichas_metidas == nFichasPorJugador {
-				fmt.Println("Ganaste uwu")
-
-				os.Exit(0)
-			}
-		}
-		num = num + 1
-		if num == cantidad_de_jugadores {
-			num = 0
-		}
-		Enviar(num)
-	}
-
 }
 
 func main() {
-	//fijar el puerto del nodo local
 	br := bufio.NewReader(os.Stdin)
-	fmt.Print("Ingrese el puerto del nodo actual: ")
-	strPuertoLocal, _ := br.ReadString('\n')
-	strPuertoLocal = strings.TrimSpace(strPuertoLocal)
-	direccionLocal := fmt.Sprintf("localhost:%s", strPuertoLocal)
+	fmt.Print("Ingrese el puerto del nodo remoto: ")
+	puertoRemoto, _ := br.ReadString('\n')
+	puertoRemoto = strings.TrimSpace(puertoRemoto)
+	direccionRemota := fmt.Sprintf("localhost:%s", "8000")
 
-	//fijar el puerto del nodo destino
-	fmt.Print("Ingrese el puerto del nodo destino: ")
-	strPuertoRemoto, _ := br.ReadString('\n')
-	strPuertoRemoto = strings.TrimSpace(strPuertoRemoto)
-	direccionRemota = fmt.Sprintf("localhost:%s", strPuertoRemoto)
-
-	//conexiones entrantes
-	ln, _ := net.Listen("tcp", direccionLocal)
-	defer ln.Close()
-
-	for {
-		con, _ := ln.Accept()
-		go Manejador(con)
-	}
-
+	enviar_i(direccionRemota, 0)
 }
