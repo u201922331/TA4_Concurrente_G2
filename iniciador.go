@@ -60,7 +60,7 @@ func enviar_i(direccionRemota string, x int) {
 	defer con.Close()
 	Tb.C_j = x
 
-	arrBytesJson, _ := json.Marshal(Tb)
+	arrBytesJson, _ := json.MarshalIndent(Tb, "", "\t")
 	strMsgJson := string(arrBytesJson)
 	//fmt.Println("Mensaje enviado: ")
 	fmt.Println(strMsgJson)

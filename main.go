@@ -27,14 +27,10 @@ type Tablero struct {
 	C_j       int
 }
 
-func (Tb Tablero) Mantener(num int) {
-	if Tb.Jugadores[num].Posicion <= 0 {
-		Tb.Jugadores[num].Posicion = 0
-	}
-	if Tb.Jugadores[num].Posicion >= Nro_casillas-1 {
-		Tb.Jugadores[num].Posicion = Nro_casillas - 1
-	}
+func (Tb Tablero) Mantener(idx int) {
+	Tb.Jugadores[idx].Posicion = int(math.Max(math.Min(float64(Tb.Jugadores[idx].Posicion), Nro_casillas-1), 0))
 }
+
 func (Tb Tablero) Ganar(num int) {
 	if Tb.Jugadores[num].Posicion >= Nro_casillas-1 {
 		Tb.Jugadores[num].Fichas_metidas++ //aumentar cantidad de fichas metidas
@@ -51,7 +47,7 @@ func (Tb Tablero) Ganar(num int) {
 
 		//validar ganador
 		if Tb.Jugadores[num].Fichas_metidas == nFichasPorJugador {
-			fmt.Println("Ganaste uwu")
+			fmt.Println("¡Ganaste!")
 			os.Exit(0)
 		}
 	}
@@ -65,17 +61,7 @@ func Dado() int {
 	d1 := rand.Intn(6) + 1                        // Dado 1
 	d2 := rand.Intn(6) + 1                        // Dado 2
 	s := int(math.Pow(-1, float64(rand.Intn(2)))) // Dado Signo
-	/*
-		fmt.Printf("DADOS: (%d) ", d1)
-		if s > 0 {
-			fmt.Printf("(+)")
-		} else {
-			fmt.Printf("(-)")
-		}
-		fmt.Printf(" (%d)", d2)
-	*/
-	r := d1 + s*d2
-	return r
+	return d1 + s*d2
 }
 
 func Enviar(x int) {
@@ -83,13 +69,15 @@ func Enviar(x int) {
 	defer con.Close()
 	Tb.C_j = x
 
-	arrBytesJson, _ := json.Marshal(Tb)
+	arrBytesJson, _ := json.MarshalIndent(Tb, "", "\t")
 	strMsgJson := string(arrBytesJson)
 
 	fmt.Fprintln(con, strMsgJson)
 
-	fmt.Println("Mensaje enviado: ")
-	fmt.Println(strMsgJson)
+	/*
+		fmt.Println("Mensaje enviado: ")
+		fmt.Println(strMsgJson)
+	*/
 }
 
 func Manejador(con net.Conn) {
@@ -102,8 +90,10 @@ func Manejador(con net.Conn) {
 
 	json.Unmarshal([]byte(msgJson), &Tb)
 
-	fmt.Println("Mensaje recibido: ")
-	fmt.Println(Tb)
+	/*
+		fmt.Println("Mensaje recibido: ")
+		fmt.Println(Tb)
+	*/
 
 	num = Tb.C_j
 
