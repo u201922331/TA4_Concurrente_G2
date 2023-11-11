@@ -18,10 +18,10 @@ type Jugador struct {
 	Posicion       int
 	Fichas_metidas int
 }
-type Tablero struct {
-	Jugadores []Jugador
-	Tablero   []rune
-	C_j       int
+type Juego struct {
+	Jugadores        []Jugador
+	Tablero          []rune
+	CurrentJugadorId int
 }
 
 func GenTablero(casillas int) []rune {
@@ -32,7 +32,7 @@ func GenTablero(casillas int) []rune {
 	tablero[0] = '#'              // # -> Inicio
 	tablero[len(tablero)-1] = '#' // $ -> Fin
 
-	umbral := int(float64(casillas) * 0.5) // Solo se llenará el 30% de las casillas en blanco con casillas especiales
+	umbral := int(float64(casillas) * 0.5) // Solo se llenará el 50% de las casillas en blanco con casillas especiales
 
 	for i := 0; i < umbral; i++ {
 		idx := rand.Intn(int(casillas))
@@ -53,14 +53,14 @@ func GenTablero(casillas int) []rune {
 	return tablero
 }
 
-var Tb = Tablero{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, GenTablero(Nro_casillas), 1}
+var juego = Juego{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, GenTablero(Nro_casillas), 1}
 
-func enviar_i(direccionRemota string, x int) {
+func Enviar(direccionRemota string, currentJugadorId int) {
 	con, _ := net.Dial("tcp", direccionRemota)
 	defer con.Close()
-	Tb.C_j = x
+	juego.CurrentJugadorId = currentJugadorId
 
-	arrBytesJson, _ := json.MarshalIndent(Tb, "", "\t")
+	arrBytesJson, _ := json.MarshalIndent(juego, "", "\t")
 	strMsgJson := string(arrBytesJson)
 	//fmt.Println("Mensaje enviado: ")
 	fmt.Println(strMsgJson)
@@ -74,5 +74,5 @@ func main() {
 	puertoRemoto = strings.TrimSpace(puertoRemoto)
 	direccionRemota := fmt.Sprintf("localhost:%s", "8000")
 
-	enviar_i(direccionRemota, 0)
+	Enviar(direccionRemota, 0)
 }

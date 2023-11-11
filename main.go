@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	Nro_casillas      = 21
-	nFichasPorJugador = 1
+	nCasillas         = 21
+	nFichasPorJugador = 4
 )
 
 type Jugador struct {
@@ -21,32 +21,46 @@ type Jugador struct {
 	Fichas_metidas int
 }
 
-type Tablero struct {
-	Jugadores []Jugador
-	Tablero   []rune
-	C_j       int
+type Juego struct {
+	Jugadores        []Jugador
+	Tablero          []rune
+	CurrentJugadorId int
 }
 
-func (Tb Tablero) Mantener(idx int) {
-	Tb.Jugadores[idx].Posicion = int(math.Max(math.Min(float64(Tb.Jugadores[idx].Posicion), Nro_casillas-1), 0))
+func (juego Juego) Print() {
+	fmt.Println(juego.Tablero)
+	for _, jugador := range juego.Jugadores {
+		for i := 0; i < jugador.Posicion; i++ {
+			fmt.Print(" ")
+		}
+		fmt.Print("¡")
+		for i := jugador.Posicion + 1; i < nCasillas; i++ {
+			fmt.Print(" ")
+		}
+		fmt.Print("\n\n")
+	}
 }
 
-func (Tb Tablero) Ganar(num int) {
-	if Tb.Jugadores[num].Posicion >= Nro_casillas-1 {
-		Tb.Jugadores[num].Fichas_metidas++ //aumentar cantidad de fichas metidas
-		fmt.Println("Metio una ficha")
+func (juego Juego) Mantener(idx int) {
+	juego.Jugadores[idx].Posicion = int(math.Max(math.Min(float64(juego.Jugadores[idx].Posicion), nCasillas-1), 0))
+}
+
+func (juego Juego) Ganar(num int) {
+	if juego.Jugadores[num].Posicion >= nCasillas-1 {
+		juego.Jugadores[num].Fichas_metidas++ //aumentar cantidad de fichas metidas
+		fmt.Println("¡Metio una ficha!")
 
 		//actualizar y mostrar posiciones en el tablero
-		Tb.Tablero[Tb.Jugadores[0].Posicion] = 'a'
-		Tb.Tablero[Tb.Jugadores[1].Posicion] = 'b'
-		Tb.Tablero[Tb.Jugadores[2].Posicion] = 'c'
-		Tb.Tablero[Tb.Jugadores[3].Posicion] = 'd'
-		fmt.Printf("%c\n", Tb.Tablero)
+		juego.Tablero[juego.Jugadores[0].Posicion] = 'a'
+		juego.Tablero[juego.Jugadores[1].Posicion] = 'b'
+		juego.Tablero[juego.Jugadores[2].Posicion] = 'c'
+		juego.Tablero[juego.Jugadores[3].Posicion] = 'd'
+		fmt.Printf("%c\n", juego.Tablero)
 
-		Tb.Jugadores[num].Posicion = 0 //reiniciar ficha
+		juego.Jugadores[num].Posicion = 0 //reiniciar ficha
 
 		//validar ganador
-		if Tb.Jugadores[num].Fichas_metidas == nFichasPorJugador {
+		if juego.Jugadores[num].Fichas_metidas == nFichasPorJugador {
 			fmt.Println("¡Ganaste!")
 			os.Exit(0)
 		}
@@ -54,8 +68,12 @@ func (Tb Tablero) Ganar(num int) {
 }
 
 var direccionRemota string
-var Tb = Tablero{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, make([]rune, Nro_casillas), 1}
+var juego = Juego{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, make([]rune, nCasillas), 1}
 var cantidad_de_jugadores = 2
+
+func InitGame() {
+
+}
 
 func Dado() int {
 	d1 := rand.Intn(6) + 1                        // Dado 1
@@ -64,12 +82,12 @@ func Dado() int {
 	return d1 + s*d2
 }
 
-func Enviar(x int) {
+func Enviar(currentJugadorId int) {
 	con, _ := net.Dial("tcp", direccionRemota)
 	defer con.Close()
-	Tb.C_j = x
+	juego.CurrentJugadorId = currentJugadorId
 
-	arrBytesJson, _ := json.MarshalIndent(Tb, "", "\t")
+	arrBytesJson, _ := json.MarshalIndent(juego, "", "\t")
 	strMsgJson := string(arrBytesJson)
 
 	fmt.Fprintln(con, strMsgJson)
@@ -88,58 +106,54 @@ func Manejador(con net.Conn) {
 	br := bufio.NewReader(con)
 	msgJson, _ := br.ReadString('\n')
 
-	json.Unmarshal([]byte(msgJson), &Tb)
+	json.Unmarshal([]byte(msgJson), &juego)
 
 	/*
 		fmt.Println("Mensaje recibido: ")
-		fmt.Println(Tb)
+		fmt.Println(juego)
 	*/
 
-	num = Tb.C_j
+	num = juego.CurrentJugadorId
 
 	//lógica del juego
-	if false {
-		fmt.Println("xd")
-	} else {
-		//tirar dado y actualizar posicion
-		a := Dado()
-		Tb.Jugadores[num].Posicion = Tb.Jugadores[num].Posicion + a
+	// ==================
+	// tirar dado y actualizar posicion
+	a := Dado()
+	juego.Jugadores[num].Posicion = juego.Jugadores[num].Posicion + a
 
-		//mantener en los limites de la cantidad de casillas totales
-		Tb.Mantener(num)
+	//mantener en los limites de la cantidad de casillas totales
+	juego.Mantener(num)
 
-		//casillas especiales
-		//	1 -> +3 espacios	2 -> -3 espacios	3 -> regresa al principio
-		if Tb.Tablero[Tb.Jugadores[num].Posicion] == '1' { //49
-			Tb.Jugadores[num].Posicion = Tb.Jugadores[num].Posicion + 3
-			ce = 1
-		} else if Tb.Tablero[Tb.Jugadores[num].Posicion] == '2' { //50
-			Tb.Jugadores[num].Posicion = Tb.Jugadores[num].Posicion - 3
-			ce = 2
-		} else if Tb.Tablero[Tb.Jugadores[num].Posicion] == '3' { //51
-			Tb.Jugadores[num].Posicion = 0
-			ce = 3
-		}
-
-		//mantener en los limites de la cantidad de casillas totales
-		Tb.Mantener(num)
-
-		//D: dado    P: posicion    FM: fichas metidas    T:turno	de jugador x    CE: casilla especial
-		fmt.Printf("D: %d\tP: %d\tFM: %d\tT: %d\tCE: %d\n",
-			a, Tb.Jugadores[num].Posicion, Tb.Jugadores[num].Fichas_metidas, num, ce)
-
-		//validar si llego a la meta
-		Tb.Ganar(num)
-
-		//actualizar turno
-		num = num + 1
-		if num == cantidad_de_jugadores {
-			num = 0
-		}
-
-		Enviar(num)
+	//casillas especiales
+	//	1 -> +3 espacios	2 -> -3 espacios	3 -> regresa al principio
+	if juego.Tablero[juego.Jugadores[num].Posicion] == '1' {
+		juego.Jugadores[num].Posicion = juego.Jugadores[num].Posicion + 3
+		ce = 1
+	} else if juego.Tablero[juego.Jugadores[num].Posicion] == '2' {
+		juego.Jugadores[num].Posicion = juego.Jugadores[num].Posicion - 3
+		ce = 2
+	} else if juego.Tablero[juego.Jugadores[num].Posicion] == '3' {
+		juego.Jugadores[num].Posicion = 0
+		ce = 3
 	}
 
+	//mantener en los limites de la cantidad de casillas totales
+	juego.Mantener(num)
+
+	//D: dado    P: posicion    FM: fichas metidas    T:turno	de jugador x    CE: casilla especial
+	fmt.Printf("D: %d\tP: %d\tFM: %d\tT: %d\tCE: %d\n",
+		a, juego.Jugadores[num].Posicion, juego.Jugadores[num].Fichas_metidas, num, ce)
+
+	//validar si llego a la meta
+	juego.Ganar(num)
+
+	//actualizar turno
+	num = num + 1
+	if num == cantidad_de_jugadores {
+		num = 0
+	}
+
+	Enviar(num)
 }
 
 func main() {
