@@ -13,21 +13,22 @@ import (
 
 const (
 	nCasillas         = 21
-	nFichasPorJugador = 4
+	nFichasPorJugador = 2
 )
 
 type Jugador struct {
-	Posicion       int
-	Fichas_metidas int
+	Posicion      int
+	FichasMetidas int
 }
 
 type Juego struct {
 	Jugadores        []Jugador
 	Tablero          []rune
 	CurrentJugadorId int
+	WinFlag          bool
 }
 
-func (juego Juego) Print() {
+func (juego *Juego) Print() {
 	fmt.Println(juego.Tablero)
 	for _, jugador := range juego.Jugadores {
 		for i := 0; i < jugador.Posicion; i++ {
@@ -41,13 +42,13 @@ func (juego Juego) Print() {
 	}
 }
 
-func (juego Juego) Mantener(idx int) {
+func (juego *Juego) Mantener(idx int) {
 	juego.Jugadores[idx].Posicion = int(math.Max(math.Min(float64(juego.Jugadores[idx].Posicion), nCasillas-1), 0))
 }
 
-func (juego Juego) Ganar(num int) {
+func (juego *Juego) Ganar(num int) {
 	if juego.Jugadores[num].Posicion >= nCasillas-1 {
-		juego.Jugadores[num].Fichas_metidas++ //aumentar cantidad de fichas metidas
+		juego.Jugadores[num].FichasMetidas++ //aumentar cantidad de fichas metidas
 		fmt.Println("¡Metio una ficha!")
 
 		//actualizar y mostrar posiciones en el tablero
@@ -60,20 +61,17 @@ func (juego Juego) Ganar(num int) {
 		juego.Jugadores[num].Posicion = 0 //reiniciar ficha
 
 		//validar ganador
-		if juego.Jugadores[num].Fichas_metidas == nFichasPorJugador {
+		if juego.Jugadores[num].FichasMetidas == nFichasPorJugador {
 			fmt.Println("¡Ganaste!")
+			juego.WinFlag = true
 			os.Exit(0)
 		}
 	}
 }
 
 var direccionRemota string
-var juego = Juego{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, make([]rune, nCasillas), 1}
+var juego = Juego{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, make([]rune, nCasillas), 1, false}
 var cantidad_de_jugadores = 2
-
-func InitGame() {
-
-}
 
 func Dado() int {
 	d1 := rand.Intn(6) + 1                        // Dado 1
@@ -118,10 +116,8 @@ func Manejador(con net.Conn) {
 	//lógica del juego
 	// ==================
 	// tirar dado y actualizar posicion
-	a := Dado()
-	juego.Jugadores[num].Posicion = juego.Jugadores[num].Posicion + a
-
-	//mantener en los limites de la cantidad de casillas totales
+	dado := Dado()
+	juego.Jugadores[num].Posicion = juego.Jugadores[num].Posicion + dado
 	juego.Mantener(num)
 
 	//casillas especiales
@@ -142,7 +138,7 @@ func Manejador(con net.Conn) {
 
 	//D: dado    P: posicion    FM: fichas metidas    T:turno	de jugador x    CE: casilla especial
 	fmt.Printf("D: %d\tP: %d\tFM: %d\tT: %d\tCE: %d\n",
-		a, juego.Jugadores[num].Posicion, juego.Jugadores[num].Fichas_metidas, num, ce)
+		dado, juego.Jugadores[num].Posicion, juego.Jugadores[num].FichasMetidas, num, ce)
 
 	//validar si llego a la meta
 	juego.Ganar(num)

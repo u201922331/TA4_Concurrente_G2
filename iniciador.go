@@ -7,53 +7,42 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
 const (
-	Nro_casillas = 21
+	nCasillas = 21
 )
 
 type Jugador struct {
-	Posicion       int
-	Fichas_metidas int
+	Posicion      int
+	FichasMetidas int
 }
 type Juego struct {
 	Jugadores        []Jugador
 	Tablero          []rune
 	CurrentJugadorId int
+	WinFlag          bool
 }
 
-func GenTablero(casillas int) []rune {
-	tablero := make([]rune, casillas)
-	for i := range tablero {
-		tablero[i] = '_' // . -> Casillas en blanco
+func (juego *Juego) GenTablero(n int) {
+	tmp := strings.Split(strings.Repeat("_", n), "")
+	tmp[0] = "#"
+	tmp[len(tmp)-1] = "#"
+
+	for i := 0; i < int(float64(n)*0.5); i++ { // Umbral de 50%
+		idx := rand.Intn(n-2) + 1                 // Escogemos una casilla aleatoria (omitiendo inicio y final)
+		tmp[idx] = strconv.Itoa(rand.Intn(3) + 1) // 1: +3 | 2: -3 | 3: Al inicio
 	}
-	tablero[0] = '#'              // # -> Inicio
-	tablero[len(tablero)-1] = '#' // $ -> Fin
 
-	umbral := int(float64(casillas) * 0.5) // Solo se llenará el 50% de las casillas en blanco con casillas especiales
-
-	for i := 0; i < umbral; i++ {
-		idx := rand.Intn(int(casillas))
-		// No afectar las casillas inicial y final
-		if idx == 0 || idx == len(tablero)-1 {
-			continue
-		}
-
-		switch rand.Intn(3) + 1 {
-		case 1:
-			tablero[idx] = '1' // +3 espacios
-		case 2:
-			tablero[idx] = '2' // -3 espacios
-		case 3:
-			tablero[idx] = '3' // regresa al principio
-		}
+	juego.Tablero = []rune{}
+	for _, str := range tmp {
+		juego.Tablero = append(juego.Tablero, []rune(str)...)
 	}
-	return tablero
 }
 
-var juego = Juego{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, GenTablero(Nro_casillas), 1}
+var juego = Juego{[]Jugador{{0, 0}, {0, 0}, {0, 0}, {0, 0}}, []rune{}, 1, false}
 
 func Enviar(direccionRemota string, currentJugadorId int) {
 	con, _ := net.Dial("tcp", direccionRemota)
@@ -68,6 +57,8 @@ func Enviar(direccionRemota string, currentJugadorId int) {
 }
 
 func main() {
+	juego.GenTablero(nCasillas)
+
 	br := bufio.NewReader(os.Stdin)
 	fmt.Print("Ingrese el puerto del nodo remoto: ")
 	puertoRemoto, _ := br.ReadString('\n')
